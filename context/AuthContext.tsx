@@ -17,7 +17,11 @@ import {
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
-import { auth, appleProvider, googleProvider } from "@/lib/firebase-client";
+import {
+  appleProvider,
+  getFirebaseAuth,
+  googleProvider,
+} from "@/lib/firebase-client";
 
 type AuthContextValue = {
   user: User | null;
@@ -46,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const auth = getFirebaseAuth();
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
       setUser(nextUser);
       if (nextUser) {
@@ -58,26 +63,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    await signInWithPopup(auth, googleProvider);
+    await signInWithPopup(getFirebaseAuth(), googleProvider);
   }, []);
 
   const signInWithApple = useCallback(async () => {
     appleProvider.addScope("email");
     appleProvider.addScope("name");
-    await signInWithPopup(auth, appleProvider);
+    await signInWithPopup(getFirebaseAuth(), appleProvider);
   }, []);
 
   const register = useCallback(async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
   }, []);
 
   const signOut = useCallback(async () => {
     await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
-    await firebaseSignOut(auth);
+    await firebaseSignOut(getFirebaseAuth());
     window.location.href = "/login";
   }, []);
 

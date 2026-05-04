@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -140,24 +141,22 @@ export default function SubscriptionActions({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <a
-                href="https://apps.apple.com/account/subscriptions"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                App Store
-              </a>
-            </Button>
-            <Button variant="outline" asChild>
-              <a
-                href="https://play.google.com/store/account/subscriptions"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Google Play
-              </a>
-            </Button>
+            <a
+              href="https://apps.apple.com/account/subscriptions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              App Store
+            </a>
+            <a
+              href="https://play.google.com/store/account/subscriptions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              Google Play
+            </a>
           </CardContent>
           <CardFooter>
             <Button variant="ghost" onClick={() => router.refresh()}>

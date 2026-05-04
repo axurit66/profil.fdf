@@ -27,7 +27,10 @@ async function handleStripeSubscription(
   }
 
   const stripeStatus = sub.status;
-  const isActive = stripeStatus === "active" || stripeStatus === "trialing";
+  const isActive =
+    stripeStatus === "active" ||
+    stripeStatus === "trialing" ||
+    stripeStatus === "past_due";
   const isCanceledLike =
     stripeStatus === "canceled" ||
     stripeStatus === "incomplete_expired" ||
@@ -39,8 +42,14 @@ async function handleStripeSubscription(
       ? "canceled"
       : "expired";
 
-  const priceId = sub.items.data[0]?.price?.id;
-  const periodEndSec = sub.current_period_end;
+  const firstItem = sub.items.data[0];
+  const priceId =
+    typeof firstItem?.price === "object" && firstItem.price
+      ? firstItem.price.id
+      : typeof firstItem?.price === "string"
+        ? firstItem.price
+        : undefined;
+  const periodEndSec = firstItem?.current_period_end;
 
   await adminDb
     .collection("users")

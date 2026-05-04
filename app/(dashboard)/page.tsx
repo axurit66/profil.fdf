@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 
 type SubPayload = {
   isPremium: boolean;
@@ -145,9 +146,12 @@ export default function DashboardHomePage() {
               )}
             </div>
           )}
-          <Button asChild variant="outline">
-            <Link href="/subscription">Gérer mon abonnement</Link>
-          </Button>
+          <Link
+            href="/subscription"
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Gérer mon abonnement
+          </Link>
         </CardContent>
       </Card>
     </div>
