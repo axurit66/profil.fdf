@@ -11,14 +11,20 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
 import {
-  appleProvider,
+  clearOAuthPostLoginPath,
+  readOAuthReturnPathFromBrowser,
+} from "@/lib/oauth-post-login";
+import {
+  createAppleOAuthProvider,
   facebookProvider,
   getFirebaseAuth,
   googleProvider,
@@ -39,12 +45,21 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 async function syncSessionCookie(idToken: string | null) {
   if (!idToken) return;
-  await fetch("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken }),
-    credentials: "include",
-  });
+  const url =
+    typeof window !== "undefined"
+      ? new URL("/api/auth/session", window.location.origin).toString()
+      : "/api/auth/session";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (res.ok) return;
+    await new Promise((r) => setTimeout(r, 120));
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -53,15 +68,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    const unsub = onAuthStateChanged(auth, async (nextUser) => {
-      setUser(nextUser);
-      if (nextUser) {
-        const token = await nextUser.getIdToken();
-        await syncSessionCookie(token);
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+
+    void (async () => {
+      await auth.authStateReady();
+
+      try {
+        const redirectResult = await getRedirectResult(auth);
+
+        const returnPath = readOAuthReturnPathFromBrowser();
+
+        if (redirectResult?.user) {
+          clearOAuthPostLoginPath();
+          let path = returnPath ?? "/";
+          if (!path.startsWith("/") || path.startsWith("//")) path = "/";
+          try {
+            const token = await redirectResult.user.getIdToken(true);
+            await syncSessionCookie(token);
+            await new Promise((r) => setTimeout(r, 200));
+          } catch {
+            /* rechargement même si cookie échoue */
+          }
+          window.location.replace(new URL(path, window.location.origin).href);
+          return;
+        }
+      } catch {
+        clearOAuthPostLoginPath();
       }
-      setLoading(false);
-    });
-    return () => unsub();
+
+      if (cancelled) return;
+
+      unsub = onAuthStateChanged(auth, async (nextUser) => {
+        setUser(nextUser);
+        setLoading(true);
+        try {
+          if (nextUser) {
+            const token = await nextUser.getIdToken(true);
+            await syncSessionCookie(token);
+          }
+        } catch {
+          /* cookie session optionnel pour la navigation client */
+        } finally {
+          setLoading(false);
+        }
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
@@ -69,17 +126,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    await signInWithPopup(getFirebaseAuth(), googleProvider);
+    await signInWithRedirect(getFirebaseAuth(), googleProvider);
   }, []);
 
   const signInWithApple = useCallback(async () => {
-    appleProvider.addScope("email");
-    appleProvider.addScope("name");
-    await signInWithPopup(getFirebaseAuth(), appleProvider);
+    await signInWithRedirect(getFirebaseAuth(), createAppleOAuthProvider());
   }, []);
 
   const signInWithFacebook = useCallback(async () => {
-    await signInWithPopup(getFirebaseAuth(), facebookProvider);
+    await signInWithRedirect(getFirebaseAuth(), facebookProvider);
   }, []);
 
   const register = useCallback(async (email: string, password: string) => {

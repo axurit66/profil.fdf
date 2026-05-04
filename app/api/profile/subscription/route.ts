@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireBearerUid } from "@/lib/auth-api";
 import { adminDb } from "@/lib/firebase-admin";
+import {
+  isUserPremiumActive,
+  parseUserExpiryMs,
+} from "@/lib/user-subscription-firestore";
 
 export const runtime = "nodejs";
 
@@ -10,16 +14,10 @@ export async function GET(request: Request) {
   const { uid } = auth;
 
   const snap = await adminDb.collection("users").doc(uid).get();
-  const data = snap.data();
+  const data = snap.data() as Record<string, unknown> | undefined;
 
-  let expiryMs: number | null = null;
-  const exp = data?.expiryDate;
-  if (exp && typeof exp.toDate === "function") {
-    expiryMs = exp.toDate().getTime();
-  }
-
-  const expiredByDate = expiryMs != null && expiryMs < Date.now();
-  const isPremium = Boolean(data?.isPremium && !expiredByDate);
+  const expiryMs = parseUserExpiryMs(data);
+  const isPremium = isUserPremiumActive(data);
 
   return NextResponse.json({
     isPremium,

@@ -34,3 +34,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#csv
+users.csv
+export-iap-prospect-04-05-2026-20_04.csv

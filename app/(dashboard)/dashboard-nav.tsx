@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -20,11 +21,13 @@ export function DashboardNav({
   displayName,
   photoURL,
   showInvoicesTab = true,
+  onNavigate,
 }: {
   email: string;
   displayName: string | undefined;
   photoURL: string | undefined;
   showInvoicesTab?: boolean;
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
@@ -59,8 +62,9 @@ export function DashboardNav({
           <Link
             key={l.href}
             href={l.href}
+            onClick={() => onNavigate?.()}
             className={cn(
-              "rounded-md px-3 py-2 text-sm transition-colors hover:bg-muted",
+              "rounded-md px-3 py-2.5 text-sm transition-colors hover:bg-muted active:bg-muted/80",
               pathname === l.href && "bg-muted font-medium"
             )}
           >
@@ -71,9 +75,10 @@ export function DashboardNav({
       <a
         href={getMainSiteUrl()}
         rel="noopener noreferrer"
+        onClick={() => onNavigate?.()}
         className={cn(buttonVariants({ variant: "secondary" }), "w-full")}
       >
-        Feux de forêt — site principal
+        <ArrowLeft className="h-4 w-4" /> Retour au site Feux de forêt
       </a>
       <Button variant="outline" className="w-full" onClick={() => void signOut()}>
         Déconnexion

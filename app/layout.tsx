@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -10,9 +10,19 @@ const outfit = Outfit({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "Profil — Feux de forêt",
   description: "Connexion et gestion d'abonnement",
+  icons: {
+    icon: [{ url: "/icone.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icone.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({

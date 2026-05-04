@@ -1,6 +1,6 @@
 import { requireSessionUid } from "@/lib/session-server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
-import { DashboardNav } from "./dashboard-nav";
+import { DashboardShell } from "./dashboard-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +16,13 @@ export default async function DashboardLayout({
   const showInvoicesTab = source !== "ios" && source !== "android";
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-64 shrink-0 border-r bg-card p-4">
-        <DashboardNav
-          email={record.email || ""}
-          displayName={record.displayName}
-          photoURL={record.photoURL}
-          showInvoicesTab={showInvoicesTab}
-        />
-      </aside>
-      <main className="flex-1 p-6">{children}</main>
-    </div>
+    <DashboardShell
+      email={record.email || ""}
+      displayName={record.displayName}
+      photoURL={record.photoURL}
+      showInvoicesTab={showInvoicesTab}
+    >
+      {children}
+    </DashboardShell>
   );
 }

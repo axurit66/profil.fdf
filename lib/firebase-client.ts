@@ -48,7 +48,13 @@ export function getFirebaseDb() {
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
-export const appleProvider = new OAuthProvider("apple.com");
+/** Nouvelle instance à chaque flux OAuth : évite d’empiler les scopes (Apple). */
+export function createAppleOAuthProvider(): OAuthProvider {
+  const provider = new OAuthProvider("apple.com");
+  provider.addScope("email");
+  provider.addScope("name");
+  return provider;
+}
 
 export const facebookProvider = new FacebookAuthProvider();
 facebookProvider.addScope("email");

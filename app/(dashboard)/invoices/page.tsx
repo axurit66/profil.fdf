@@ -38,7 +38,9 @@ export default async function InvoicesPage() {
   if (!stripeCustomerId) {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Factures</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+          Factures
+        </h1>
         <p className="text-muted-foreground">Aucune facture disponible</p>
       </div>
     );
@@ -51,12 +53,14 @@ export default async function InvoicesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Factures</h1>
+      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+        Factures
+      </h1>
       {list.data.length === 0 ? (
         <p className="text-muted-foreground">Aucune facture pour le moment.</p>
       ) : (
-        <div className="rounded-md border">
-          <Table>
+        <div className="-mx-4 overflow-x-auto rounded-md border sm:mx-0">
+          <Table className="min-w-[520px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>

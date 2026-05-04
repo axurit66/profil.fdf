@@ -3,11 +3,13 @@ import { adminDb } from "./firebase-admin";
 
 export type SubscriptionStatus = "active" | "expired" | "canceled";
 
-export type SubscriptionSource = "stripe" | "ios" | "android";
+export type SubscriptionSource = "stripe" | "ios" | "android" | "admin";
 
 export type SubscriptionData = {
   productId?: string;
   expiresAt?: Date | number;
+  /** Premium sans date de fin (efface expiryDate dans Firestore). */
+  unlimited?: boolean;
   purchaseToken?: string;
   appAccountToken?: string;
   source: SubscriptionSource;
@@ -34,7 +36,9 @@ export async function updateSubscriptionStatus(
   if (data.appAccountToken !== undefined) {
     updates.appAccountToken = data.appAccountToken;
   }
-  if (data.expiresAt !== undefined) {
+  if (data.unlimited === true) {
+    updates.expiryDate = FieldValue.delete();
+  } else if (data.expiresAt !== undefined) {
     const d =
       typeof data.expiresAt === "number"
         ? new Date(data.expiresAt)
@@ -43,4 +47,21 @@ export async function updateSubscriptionStatus(
   }
 
   await adminDb.collection("users").doc(uid).set(updates, { merge: true });
+}
+
+/** Retire le statut premium côté Firestore (admin ; Stripe/IAP externes non modifiés côté prestataire). */
+export async function revokePremiumAccess(uid: string): Promise<void> {
+  await adminDb.collection("users").doc(uid).set(
+    {
+      isPremium: false,
+      expiryDate: FieldValue.delete(),
+      source: FieldValue.delete(),
+      productId: FieldValue.delete(),
+      purchaseToken: FieldValue.delete(),
+      appAccountToken: FieldValue.delete(),
+      stripeSubscriptionId: FieldValue.delete(),
+      iapUpdatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 }

@@ -4,6 +4,18 @@ import { SESSION_COOKIE_NAME, SESSION_EXPIRES_IN_MS } from "@/lib/session";
 
 export const runtime = "nodejs";
 
+function sessionCookieSecure(request: Request): boolean {
+  if (process.env.NODE_ENV === "production") return true;
+  const forwarded = request.headers.get("x-forwarded-proto");
+  const first = forwarded?.split(",")[0]?.trim().toLowerCase();
+  if (first === "https") return true;
+  try {
+    return new URL(request.url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   let body: { idToken?: string };
   try {
@@ -30,7 +42,7 @@ export async function POST(request: Request) {
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE_NAME, sessionCookie, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(request),
     sameSite: "lax",
     path: "/",
     maxAge: Math.floor(expiresIn / 1000),
@@ -68,7 +80,7 @@ export async function DELETE(request: Request) {
   const res = NextResponse.json({ ok: true }, { headers: corsHeadersForRequest(request) });
   res.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(request),
     sameSite: "lax",
     path: "/",
     maxAge: 0,

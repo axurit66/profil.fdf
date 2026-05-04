@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import {
-  appleProvider,
+  createAppleOAuthProvider,
   facebookProvider,
   getFirebaseAuth,
   googleProvider,
@@ -86,7 +86,7 @@ function SectionShell({
         className
       )}
     >
-      <div className="flex gap-4 border-b border-border/60 bg-muted/20 px-5 py-4 sm:px-6 sm:py-5">
+      <div className="flex flex-col gap-3 border-b border-border/60 bg-muted/20 px-4 py-4 sm:flex-row sm:gap-4 sm:px-6 sm:py-5">
         <div
           className={cn(
             "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary",
@@ -102,7 +102,7 @@ function SectionShell({
           </div>
         </div>
       </div>
-      <div className="p-5 sm:p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </section>
   );
 }
@@ -144,8 +144,7 @@ export default function AccountPage() {
       return;
     }
     if (aUser) {
-      appleProvider.addScope("email");
-      await reauthenticateWithPopup(u, appleProvider);
+      await reauthenticateWithPopup(u, createAppleOAuthProvider());
       return;
     }
     if (fUser) {
@@ -279,7 +278,7 @@ export default function AccountPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 pb-4">
-      <header className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] via-background to-background px-6 py-8 sm:px-8 sm:py-10">
+      <header className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] via-background to-background px-4 py-7 sm:px-8 sm:py-10">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" aria-hidden />
         <div className="relative">
           <p className="text-xs font-medium uppercase tracking-widest text-primary">
@@ -486,7 +485,7 @@ export default function AccountPage() {
         )}
 
         <section className="overflow-hidden rounded-2xl border border-destructive/25 bg-gradient-to-b from-destructive/[0.04] to-card shadow-sm">
-          <div className="flex gap-4 border-b border-destructive/15 bg-destructive/[0.06] px-5 py-4 sm:px-6 sm:py-5">
+          <div className="flex flex-col gap-3 border-b border-destructive/15 bg-destructive/[0.06] px-4 py-4 sm:flex-row sm:gap-4 sm:px-6 sm:py-5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-destructive/15 text-destructive">
               <Trash2 className="h-5 w-5" aria-hidden />
             </div>
@@ -501,7 +500,7 @@ export default function AccountPage() {
               </p>
             </div>
           </div>
-          <form onSubmit={onDeleteAccount} className="space-y-5 p-5 sm:p-6">
+          <form onSubmit={onDeleteAccount} className="space-y-5 p-4 sm:p-6">
             {pwUser && (
               <div className="space-y-2">
                 <Label htmlFor="del-pw">Mot de passe pour confirmer</Label>

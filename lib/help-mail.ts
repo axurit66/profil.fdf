@@ -191,3 +191,42 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+/** Envoie un e-mail simple (ex. code admin OTP). Réutilise la config Gmail du formulaire d’aide. */
+export async function sendAdminOtpEmail(
+  to: string,
+  code: string
+): Promise<void> {
+  if (!isHelpMailConfigured()) {
+    throw new Error("Gmail API non configurée");
+  }
+  const { gmail, fromMailbox } = await getGmailContext();
+  const fromName =
+    process.env.HELP_GMAIL_FROM_NAME?.trim() || "Profil Feux de forêt";
+  const from = `"${fromName}" <${fromMailbox}>`;
+  const subject = `[Profil] Code de connexion administration`;
+  const text = [
+    "Connexion à l’interface d’administration du profil",
+    "",
+    `Votre code (valable 10 minutes) : ${code}`,
+    "",
+    "Si vous n’êtes pas à l’origine de cette demande, ignorez ce message.",
+  ].join("\n");
+  const html = `<!DOCTYPE html><html><body style="font-family:sans-serif">
+<p><strong>Code de connexion administration</strong></p>
+<p style="font-size:1.25rem;letter-spacing:0.2em;font-weight:600">${escapeHtml(code)}</p>
+<p style="color:#666;font-size:0.9rem">Valable 10 minutes.</p>
+</body></html>`;
+  const rawBuf = await buildRawMessageBuffer({
+    from,
+    to,
+    replyTo: fromMailbox,
+    subject,
+    text,
+    html,
+  });
+  await gmail.users.messages.send({
+    userId: "me",
+    requestBody: { raw: toGmailRaw(rawBuf) },
+  });
+}

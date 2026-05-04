@@ -18,7 +18,7 @@ type SubPayload = {
   isPremium: boolean;
   expiryDate: string | null;
   productId: string | null;
-  source: "stripe" | "ios" | "android" | null;
+  source: "stripe" | "ios" | "android" | "admin" | null;
 };
 
 function sourceLabel(s: SubPayload["source"]) {
@@ -29,6 +29,8 @@ function sourceLabel(s: SubPayload["source"]) {
       return "App Store";
     case "android":
       return "Google Play";
+    case "admin":
+      return "Administration";
     default:
       return "—";
   }
@@ -97,7 +99,9 @@ export default function DashboardHomePage() {
     <div className="mx-auto max-w-lg space-y-6">
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Mon profil</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Mon profil
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Gérez votre compte et votre abonnement ici.
           </p>
@@ -107,7 +111,7 @@ export default function DashboardHomePage() {
           rel="noopener noreferrer"
           className={cn(
             buttonVariants({ variant: "default" }),
-            "shrink-0 whitespace-nowrap text-center"
+            "w-full shrink-0 text-center sm:w-auto sm:whitespace-nowrap"
           )}
         >
           Retour au site Feux de forêt
