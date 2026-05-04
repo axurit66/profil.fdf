@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      // Lecture : uniquement l'utilisateur lui-même
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Écriture : JAMAIS depuis le client — uniquement via l'API (Firebase Admin)
+      allow write: if false;
+    }
+  }
+}

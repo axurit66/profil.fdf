@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Maintenance is in progress!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Une maintenance est en cours!</h1>
+<p>Notre serveur est actuellement en maintenance durant quelques instants.
+Nous nous excusons pour la g&ecirc;ne occasion&eacute;e.
+Merci de revenir plus tard.</p>
+
+<p><em>Merci de votre compr&eacute;hension.</em></p>
+<h1>Maintenance is in progress!</h1>
+<p>Our server is currently under maintenance for few moments.
+We apologize for the inconvenience.
+Please come back later.</p>
+
+<p><em>Thank you for understanding.</em></p>
+</body>
+</html>
