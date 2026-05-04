@@ -104,7 +104,7 @@ export default function SubscriptionActions({
       </div>
 
       {checkoutSuccess && (
-        <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+        <p className="rounded-md border border-success/40 bg-success/15 px-3 py-2 text-sm text-foreground">
           Paiement confirmé. Votre abonnement sera mis à jour sous peu.
         </p>
       )}

@@ -1,11 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{uid} {
-      // Lecture : uniquement l'utilisateur lui-même
-      allow read: if request.auth != null && request.auth.uid == uid;
-      // Écriture : JAMAIS depuis le client — uniquement via l'API (Firebase Admin)
+    // Profil / abonnement / IAP : lecture de son doc uniquement.
+    // Écriture uniquement côté serveur (Firebase Admin) — pas de create/update client
+    // pour éviter qu’un client force isPremium, etc.
+    match /users/{userId} {
+      allow read: if request.auth != null
+        && request.auth.uid == userId;
       allow write: if false;
+    }
+
+    // Tout le reste refusé (les autres collections éventuelles se déclarent au-dessus).
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

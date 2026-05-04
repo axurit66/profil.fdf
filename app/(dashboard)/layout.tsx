@@ -1,5 +1,5 @@
 import { requireSessionUid } from "@/lib/session-server";
-import { adminAuth } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { DashboardNav } from "./dashboard-nav";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +11,9 @@ export default async function DashboardLayout({
 }) {
   const uid = await requireSessionUid();
   const record = await adminAuth.getUser(uid);
+  const userDoc = await adminDb.collection("users").doc(uid).get();
+  const source = userDoc.data()?.source as string | undefined;
+  const showInvoicesTab = source !== "ios" && source !== "android";
 
   return (
     <div className="min-h-screen flex">
@@ -19,6 +22,7 @@ export default async function DashboardLayout({
           email={record.email || ""}
           displayName={record.displayName}
           photoURL={record.photoURL}
+          showInvoicesTab={showInvoicesTab}
         />
       </aside>
       <main className="flex-1 p-6">{children}</main>

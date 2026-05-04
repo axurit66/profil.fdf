@@ -19,6 +19,7 @@ import {
 } from "firebase/auth";
 import {
   appleProvider,
+  facebookProvider,
   getFirebaseAuth,
   googleProvider,
 } from "@/lib/firebase-client";
@@ -29,6 +30,7 @@ type AuthContextValue = {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
+  signInWithFacebook: () => Promise<void>;
   signOut: () => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
 };
@@ -76,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithPopup(getFirebaseAuth(), appleProvider);
   }, []);
 
+  const signInWithFacebook = useCallback(async () => {
+    await signInWithPopup(getFirebaseAuth(), facebookProvider);
+  }, []);
+
   const register = useCallback(async (email: string, password: string) => {
     await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
   }, []);
@@ -83,7 +89,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
     await firebaseSignOut(getFirebaseAuth());
-    window.location.href = "/login";
+    if (typeof window === "undefined") return;
+    const backPath =
+      window.location.pathname + window.location.search || "/";
+    const url = new URL("/login", window.location.origin);
+    url.searchParams.set("redirect", backPath);
+    window.location.href = url.pathname + url.search;
   }, []);
 
   const value = useMemo(
@@ -93,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithEmail,
       signInWithGoogle,
       signInWithApple,
+      signInWithFacebook,
       signOut,
       register,
     }),
@@ -102,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithEmail,
       signInWithGoogle,
       signInWithApple,
+      signInWithFacebook,
       signOut,
       register,
     ]

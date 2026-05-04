@@ -7,11 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { getMainSiteUrl } from "@/lib/main-site";
 import { cn } from "@/lib/utils";
 
 type SubPayload = {
@@ -83,7 +83,7 @@ export default function DashboardHomePage() {
   let badge: React.ReactNode;
   if (effectivePremium) {
     badge = (
-      <Badge className="bg-green-600 hover:bg-green-600">Premium actif</Badge>
+      <Badge variant="success">Premium actif</Badge>
     );
   } else if (expiredByDate) {
     badge = <Badge variant="destructive">Expiré</Badge>;
@@ -95,11 +95,27 @@ export default function DashboardHomePage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Mon profil</h1>
+      <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Mon profil</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Gérez votre compte et votre abonnement ici.
+          </p>
+        </div>
+        <a
+          href={getMainSiteUrl()}
+          rel="noopener noreferrer"
+          className={cn(
+            buttonVariants({ variant: "default" }),
+            "shrink-0 whitespace-nowrap text-center"
+          )}
+        >
+          Retour au site Feux de forêt
+        </a>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Informations</CardTitle>
-          <CardDescription>Compte utilisateur Firebase</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
@@ -129,6 +145,32 @@ export default function DashboardHomePage() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">Abonnement :</span>
             {badge}
+          </div>
+          <div className="mt-6 rounded-lg border p-4">
+            <p className="mb-3 text-sm text-muted-foreground">
+              {displayPremium
+                ? "Vous serez reconnu comme membre premium sur feuxdeforet.fr (sans publicité)."
+                : "Vous serez reconnu comme membre sur feuxdeforet.fr."}
+            </p>
+            <a
+              href="/api/auth/sso"
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Accéder à feuxdeforet.fr
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
           </div>
           {displayPremium && (
             <div className="space-y-1 text-sm">

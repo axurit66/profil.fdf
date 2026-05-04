@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireSessionUid } from "@/lib/session-server";
 import { adminDb } from "@/lib/firebase-admin";
 import { stripe } from "@/lib/stripe";
@@ -28,6 +29,10 @@ function statusLabel(status: string | null) {
 export default async function InvoicesPage() {
   const uid = await requireSessionUid();
   const doc = await adminDb.collection("users").doc(uid).get();
+  const source = doc.data()?.source as string | undefined;
+  if (source === "ios" || source === "android") {
+    redirect("/subscription");
+  }
   const stripeCustomerId = doc.data()?.stripeCustomerId as string | undefined;
 
   if (!stripeCustomerId) {

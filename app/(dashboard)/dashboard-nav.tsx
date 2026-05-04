@@ -2,27 +2,35 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { getMainSiteUrl } from "@/lib/main-site";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Profil" },
+  { href: "/account", label: "Mon compte" },
   { href: "/subscription", label: "Abonnement" },
   { href: "/invoices", label: "Factures" },
+  { href: "/help", label: "Aide" },
 ];
 
 export function DashboardNav({
   email,
   displayName,
   photoURL,
+  showInvoicesTab = true,
 }: {
   email: string;
   displayName: string | undefined;
   photoURL: string | undefined;
+  showInvoicesTab?: boolean;
 }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
+  const visibleLinks = showInvoicesTab
+    ? links
+    : links.filter((l) => l.href !== "/invoices");
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,7 +55,7 @@ export function DashboardNav({
         </div>
       </div>
       <nav className="flex flex-col gap-1">
-        {links.map((l) => (
+        {visibleLinks.map((l) => (
           <Link
             key={l.href}
             href={l.href}
@@ -60,6 +68,13 @@ export function DashboardNav({
           </Link>
         ))}
       </nav>
+      <a
+        href={getMainSiteUrl()}
+        rel="noopener noreferrer"
+        className={cn(buttonVariants({ variant: "secondary" }), "w-full")}
+      >
+        Feux de forêt — site principal
+      </a>
       <Button variant="outline" className="w-full" onClick={() => void signOut()}>
         Déconnexion
       </Button>

@@ -9,7 +9,19 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          "var(--font-outfit)",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+      },
       colors: {
+        success: {
+          DEFAULT: "var(--success)",
+          foreground: "var(--success-foreground)",
+        },
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: {
@@ -37,6 +49,10 @@ const config: Config = {
           foreground: "var(--accent-foreground)",
         },
         destructive: {
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)",
+        },
+        error: {
           DEFAULT: "var(--destructive)",
           foreground: "var(--destructive-foreground)",
         },

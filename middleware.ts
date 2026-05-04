@@ -10,12 +10,15 @@ export function middleware(request: NextRequest) {
   const session = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!session) {
     const login = new URL("/login", request.url);
-    login.searchParams.set("redirect", request.nextUrl.pathname);
+    const back =
+      request.nextUrl.pathname +
+      request.nextUrl.search;
+    login.searchParams.set("redirect", back);
     return NextResponse.redirect(login);
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/", "/subscription", "/invoices"],
+  matcher: ["/", "/subscription", "/invoices", "/account", "/help"],
 };
