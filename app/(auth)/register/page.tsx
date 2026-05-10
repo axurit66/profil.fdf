@@ -231,7 +231,7 @@ function RegisterForm() {
         <div className="mt-5 flex rounded-xl bg-zinc-100 p-1">
           <Link
             href={loginHref}
-            className="flex flex-1 items-center justify-center rounded-lg py-2.5 text-center text-sm font-semibold text-primary"
+            className="flex flex-1 items-center justify-center rounded-lg py-2.5 text-center text-sm font-semibold text-zinc-600 transition-colors hover:text-zinc-900"
           >
             Se connecter
           </Link>
@@ -349,8 +349,8 @@ function RegisterForm() {
             type="submit"
             disabled={pending}
             className={cn(
-              "flex h-12 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white text-base font-semibold text-primary shadow-sm transition-colors",
-              "hover:bg-zinc-50 disabled:opacity-50"
+              "flex h-12 w-full items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground shadow-sm transition-colors",
+              "hover:bg-primary/90 disabled:opacity-50"
             )}
           >
             Créer un compte

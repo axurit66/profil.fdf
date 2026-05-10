@@ -17,3 +17,18 @@ export function getAndroidPublisher() {
   });
   return google.androidpublisher({ version: "v3", auth });
 }
+
+/**
+ * Client Android Publisher : JSON service account si défini, sinon ADC
+ * (GOOGLE_APPLICATION_CREDENTIALS, métadonnées GCE, etc.).
+ */
+export function getAndroidPublisherOrAdc() {
+  const fromJson = getAndroidPublisher();
+  if (fromJson) {
+    return fromJson;
+  }
+  const auth = new google.auth.GoogleAuth({
+    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+  });
+  return google.androidpublisher({ version: "v3", auth });
+}

@@ -1,16 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Profil / abonnement / IAP : lecture de son doc uniquement.
-    // Écriture uniquement côté serveur (Firebase Admin) — pas de create/update client
-    // pour éviter qu’un client force isPremium, etc.
+
+    // Profil utilisateur
     match /users/{userId} {
-      allow read: if request.auth != null
+      allow read, create, update: if request.auth != null
         && request.auth.uid == userId;
-      allow write: if false;
+
+      // Sessions : lecture seule par le client
+      // L'écriture est réservée au backend Admin SDK
+      match /sessions/{sessionId} {
+        // Lire uniquement ses propres sessions actives
+        allow read: if request.auth != null
+          && request.auth.uid == userId
+          && resource.data.isActive == true;
+
+        // Aucune création / modification / suppression côté client
+        allow write: if false;
+      }
     }
 
-    // Tout le reste refusé (les autres collections éventuelles se déclarent au-dessus).
+    // Tout le reste refusé
     match /{document=**} {
       allow read, write: if false;
     }

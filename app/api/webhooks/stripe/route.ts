@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { adminDb } from "@/lib/firebase-admin";
-import { updateSubscriptionStatus } from "@/lib/firestore";
 import { findUidByStripeCustomerId } from "@/lib/firestore-users";
 import { stripe } from "@/lib/stripe";
+import { syncStripeSubscription } from "@/lib/stripe-subscription-sync";
 
 export const runtime = "nodejs";
 
@@ -16,67 +15,132 @@ function customerIdFrom(
   return customer.id;
 }
 
-async function handleStripeSubscription(
+/** Abonnement lié à une facture (API récente : parent.subscription_details). */
+function subscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
+  const parent = invoice.parent;
+  if (
+    parent &&
+    parent.type === "subscription_details" &&
+    parent.subscription_details
+  ) {
+    const sub = parent.subscription_details.subscription;
+    if (typeof sub === "string") return sub;
+    if (sub && typeof sub === "object" && "id" in sub) return sub.id;
+  }
+  const legacy = (
+    invoice as Stripe.Invoice & {
+      subscription?: string | Stripe.Subscription | null;
+    }
+  ).subscription;
+  if (typeof legacy === "string") return legacy;
+  if (legacy && typeof legacy === "object" && "id" in legacy) return legacy.id;
+  return null;
+}
+
+async function handleSubscriptionWebhook(
   sub: Stripe.Subscription,
-  customerId: string
+  eventType: string
 ): Promise<void> {
-  const uid = await findUidByStripeCustomerId(customerId);
-  if (!uid) {
-    console.warn("[stripe] aucun utilisateur pour customer", customerId);
+  const cid = customerIdFrom(sub.customer);
+  if (!cid) {
+    console.warn("[stripe webhook]", eventType, "customer introuvable");
     return;
   }
-
-  const stripeStatus = sub.status;
-  const isActive =
-    stripeStatus === "active" ||
-    stripeStatus === "trialing" ||
-    stripeStatus === "past_due";
-  const isCanceledLike =
-    stripeStatus === "canceled" ||
-    stripeStatus === "incomplete_expired" ||
-    stripeStatus === "unpaid";
-
-  const subStatus = isActive
-    ? "active"
-    : isCanceledLike
-      ? "canceled"
-      : "expired";
-
-  const firstItem = sub.items.data[0];
-  const priceId =
-    typeof firstItem?.price === "object" && firstItem.price
-      ? firstItem.price.id
-      : typeof firstItem?.price === "string"
-        ? firstItem.price
-        : undefined;
-  const periodEndSec = firstItem?.current_period_end;
-
-  await adminDb
-    .collection("users")
-    .doc(uid)
-    .set(
-      {
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: sub.id,
-      },
-      { merge: true }
+  const uid = await findUidByStripeCustomerId(cid);
+  if (!uid) {
+    console.warn(
+      "[stripe webhook]",
+      eventType,
+      "aucun utilisateur Firestore pour stripeCustomerId",
+      cid
     );
-
-  await updateSubscriptionStatus(uid, subStatus, {
-    source: "stripe",
-    productId: priceId,
-    expiresAt: periodEndSec ? periodEndSec * 1000 : undefined,
+    return;
+  }
+  await syncStripeSubscription(uid, sub, eventType);
+  console.log("[stripe webhook]", eventType, "traité", {
+    uid,
+    customerId: cid,
+    subscriptionId: sub.id,
+    stripeStatus: sub.status,
   });
 }
 
-async function handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+async function handleInvoicePaymentFailed(
+  invoice: Stripe.Invoice
+): Promise<void> {
   const customerId = customerIdFrom(
     invoice.customer as Stripe.Invoice["customer"]
   );
-  if (!customerId) return;
+  if (!customerId) {
+    console.warn("[stripe webhook] invoice.payment_failed sans customer");
+    return;
+  }
   const uid = await findUidByStripeCustomerId(customerId);
-  if (!uid) return;
-  await updateSubscriptionStatus(uid, "expired", { source: "stripe" });
+  if (!uid) {
+    console.warn(
+      "[stripe webhook] invoice.payment_failed aucun user pour customer",
+      customerId
+    );
+    return;
+  }
+  const subId = subscriptionIdFromInvoice(invoice);
+  if (!subId) {
+    console.log(
+      "[stripe webhook] invoice.payment_failed ignoré (pas d’abonnement)",
+      { customerId }
+    );
+    return;
+  }
+  const sub = await stripe.subscriptions.retrieve(subId);
+  if (sub.status !== "past_due" && sub.status !== "unpaid") {
+    console.log("[stripe webhook] invoice.payment_failed ignoré", {
+      uid,
+      subscriptionId: subId,
+      stripeStatus: sub.status,
+    });
+    return;
+  }
+  await syncStripeSubscription(uid, sub, "invoice.payment_failed");
+  console.log("[stripe webhook] invoice.payment_failed traité", {
+    uid,
+    subscriptionId: subId,
+    stripeStatus: sub.status,
+  });
+}
+
+async function handleInvoicePaymentSucceeded(
+  invoice: Stripe.Invoice
+): Promise<void> {
+  const customerId = customerIdFrom(
+    invoice.customer as Stripe.Invoice["customer"]
+  );
+  if (!customerId) {
+    console.warn("[stripe webhook] invoice.payment_succeeded sans customer");
+    return;
+  }
+  const uid = await findUidByStripeCustomerId(customerId);
+  if (!uid) {
+    console.warn(
+      "[stripe webhook] invoice.payment_succeeded aucun user pour customer",
+      customerId
+    );
+    return;
+  }
+  const subId = subscriptionIdFromInvoice(invoice);
+  if (!subId) {
+    console.log(
+      "[stripe webhook] invoice.payment_succeeded ignoré (pas d’abonnement)",
+      { customerId }
+    );
+    return;
+  }
+  const sub = await stripe.subscriptions.retrieve(subId);
+  await syncStripeSubscription(uid, sub, "invoice.payment_succeeded");
+  console.log("[stripe webhook] invoice.payment_succeeded traité", {
+    uid,
+    subscriptionId: subId,
+    stripeStatus: sub.status,
+  });
 }
 
 export async function POST(request: Request) {
@@ -98,29 +162,20 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case "customer.subscription.created":
-      case "customer.subscription.updated": {
-        const sub = event.data.object as Stripe.Subscription;
-        const cid = customerIdFrom(sub.customer);
-        if (cid) await handleStripeSubscription(sub, cid);
-        break;
-      }
+      case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
-        const cid = customerIdFrom(sub.customer);
-        if (!cid) break;
-        const uid = await findUidByStripeCustomerId(cid);
-        if (uid) {
-          await adminDb.collection("users").doc(uid).set(
-            { stripeSubscriptionId: null },
-            { merge: true }
-          );
-          await updateSubscriptionStatus(uid, "canceled", { source: "stripe" });
-        }
+        await handleSubscriptionWebhook(sub, event.type);
         break;
       }
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        await handlePaymentFailed(invoice);
+        await handleInvoicePaymentFailed(invoice);
+        break;
+      }
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaymentSucceeded(invoice);
         break;
       }
       default:

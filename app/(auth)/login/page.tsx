@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { storeOAuthPostLoginPath } from "@/lib/oauth-post-login";
 import { setupPostLoginReload } from "@/lib/post-login-navigation";
+import { consumeSessionRevokedFlash } from "@/lib/session-client";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { getMainSiteUrl } from "@/lib/main-site";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,9 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [sessionClosedMessage, setSessionClosedMessage] = useState<
+    string | null
+  >(null);
   const [pending, setPending] = useState(false);
 
   const registerHref =
@@ -63,6 +67,11 @@ function LoginForm() {
     !postLoginPath.startsWith("//")
       ? `/register?redirect=${encodeURIComponent(postLoginPath)}`
       : "/register";
+
+  useEffect(() => {
+    const msg = consumeSessionRevokedFlash();
+    if (msg) setSessionClosedMessage(msg);
+  }, []);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -273,7 +282,7 @@ function LoginForm() {
           </span>
           <Link
             href={registerHref}
-            className="flex flex-1 items-center justify-center rounded-lg py-2.5 text-center text-sm font-semibold text-primary"
+            className="flex flex-1 items-center justify-center rounded-lg py-2.5 text-center text-sm font-semibold text-zinc-600 transition-colors hover:text-zinc-900"
           >
             Créer un compte
           </Link>
@@ -352,6 +361,14 @@ function LoginForm() {
               {resetMessage}
             </p>
           )}
+          {sessionClosedMessage && (
+            <p
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+              role="status"
+            >
+              {sessionClosedMessage}
+            </p>
+          )}
           {error && (
             <p className="text-sm text-destructive" role="alert">
               {error}
@@ -362,8 +379,8 @@ function LoginForm() {
             type="submit"
             disabled={pending}
             className={cn(
-              "flex h-12 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white text-base font-semibold text-primary shadow-sm transition-colors",
-              "hover:bg-zinc-50 disabled:opacity-50"
+              "flex h-12 w-full items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground shadow-sm transition-colors",
+              "hover:bg-primary/90 disabled:opacity-50"
             )}
           >
             Se connecter

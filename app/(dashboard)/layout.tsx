@@ -17,6 +17,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardShell
+      userId={uid}
       email={record.email || ""}
       displayName={record.displayName}
       photoURL={record.photoURL}

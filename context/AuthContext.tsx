@@ -14,7 +14,6 @@ import {
   getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
@@ -29,6 +28,15 @@ import {
   getFirebaseAuth,
   googleProvider,
 } from "@/lib/firebase-client";
+import {
+  clearStoredSessionId,
+  initSession,
+  revokeDeviceSessionRemote,
+  sessionProviderFromUser,
+  stopSessionWatch,
+  getStoredSessionId,
+} from "@/lib/session-client";
+import { getLogoutUrl } from "@/lib/main-site";
 
 type AuthContextValue = {
   user: User | null;
@@ -103,9 +111,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(nextUser);
         setLoading(true);
         try {
+          stopSessionWatch();
           if (nextUser) {
             const token = await nextUser.getIdToken(true);
             await syncSessionCookie(token);
+
+            let sid = getStoredSessionId();
+            if (!sid) {
+              const provider = sessionProviderFromUser(nextUser);
+              const created = await initSession(nextUser.uid, token, provider);
+              if (!created.success) {
+                return;
+              }
+              sid = getStoredSessionId();
+            }
+
+            if (!sid) {
+              try {
+                await fetch("/api/auth/session", {
+                  method: "DELETE",
+                  credentials: "include",
+                });
+              } catch {
+                /* ignore */
+              }
+              try {
+                await firebaseSignOut(auth);
+              } catch {
+                /* ignore */
+              }
+              if (typeof window !== "undefined") {
+                window.location.href = "/login";
+              }
+              return;
+            }
+          } else {
+            clearStoredSessionId();
           }
         } catch {
           /* cookie session optionnel pour la navigation client */
@@ -118,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       unsub?.();
+      stopSessionWatch();
     };
   }, []);
 
@@ -142,9 +184,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    stopSessionWatch();
+    const auth = getFirebaseAuth();
+    const u = auth.currentUser;
+    const sid = getStoredSessionId();
+    if (sid && u) {
+      try {
+        const t = await u.getIdToken();
+        await revokeDeviceSessionRemote(sid, t);
+      } catch {
+        /* ignore */
+      }
+    }
+    clearStoredSessionId();
     await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
-    await firebaseSignOut(getFirebaseAuth());
+    await firebaseSignOut(auth);
     if (typeof window === "undefined") return;
+    const logoutAfter = getLogoutUrl();
+    if (logoutAfter) {
+      window.location.href = logoutAfter;
+      return;
+    }
     const backPath =
       window.location.pathname + window.location.search || "/";
     const url = new URL("/login", window.location.origin);

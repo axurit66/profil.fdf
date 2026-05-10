@@ -23,6 +23,7 @@ export async function updateSubscriptionStatus(
   const isPremium = status === "active";
   const updates: Record<string, unknown> = {
     isPremium,
+    status: isPremium ? "active" : "inactive",
     source: data.source,
     iapUpdatedAt: FieldValue.serverTimestamp(),
   };
@@ -54,6 +55,7 @@ export async function revokePremiumAccess(uid: string): Promise<void> {
   await adminDb.collection("users").doc(uid).set(
     {
       isPremium: false,
+      status: "inactive",
       expiryDate: FieldValue.delete(),
       source: FieldValue.delete(),
       productId: FieldValue.delete(),

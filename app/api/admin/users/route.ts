@@ -4,6 +4,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { getAdminSessionFromRequest } from "@/lib/admin-auth";
+import { sessionService } from "@/lib/session-service";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,8 @@ function serializeUser(
     source: string | null;
     expiryDate: string | null;
   } | null;
+  sessionsTotal: number;
+  sessionsActive: number;
 } {
   const expiryDate = fs?.expiryDate;
   const expiryIso =
@@ -55,6 +58,8 @@ function serializeUser(
           expiryDate: expiryIso,
         }
       : null,
+    sessionsTotal: 0,
+    sessionsActive: 0,
   };
 }
 
@@ -87,7 +92,13 @@ export async function GET(request: NextRequest) {
     try {
       const user = await adminAuth.getUserByEmail(emailExact);
       const fsMap = await loadFirestoreMap([user.uid]);
-      const merged = serializeUser(user, fsMap.get(user.uid));
+      const counts = await sessionService.sessionCountsByUserIds([user.uid]);
+      const c = counts.get(user.uid) ?? { total: 0, active: 0 };
+      const merged = {
+        ...serializeUser(user, fsMap.get(user.uid)),
+        sessionsTotal: c.total,
+        sessionsActive: c.active,
+      };
       return NextResponse.json({
         users: [merged],
         nextPageToken: undefined as string | undefined,
@@ -119,10 +130,16 @@ export async function GET(request: NextRequest) {
 
   const uids = listResult.users.map((u) => u.uid);
   const fsMap = await loadFirestoreMap(uids);
+  const sessionCounts = await sessionService.sessionCountsByUserIds(uids);
 
-  const users = listResult.users.map((u) =>
-    serializeUser(u, fsMap.get(u.uid))
-  );
+  const users = listResult.users.map((u) => {
+    const c = sessionCounts.get(u.uid) ?? { total: 0, active: 0 };
+    return {
+      ...serializeUser(u, fsMap.get(u.uid)),
+      sessionsTotal: c.total,
+      sessionsActive: c.active,
+    };
+  });
 
   return NextResponse.json({
     users,

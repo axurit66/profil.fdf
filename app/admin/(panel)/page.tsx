@@ -36,6 +36,18 @@ type AdminUserRow = {
     source: string | null;
     expiryDate: string | null;
   } | null;
+  sessionsTotal: number;
+  sessionsActive: number;
+};
+
+type AdminSessionRow = {
+  sessionId: string;
+  platform: string;
+  provider: string;
+  isActive: boolean;
+  createdAt: string | null;
+  lastActiveAt: string | null;
+  deviceInfoPreview: string;
 };
 
 type AdminStats = {
@@ -58,6 +70,21 @@ function providerShort(id: string): string {
   if (id === "apple.com") return "Apple";
   if (id === "facebook.com") return "Facebook";
   return id.replace(".com", "");
+}
+
+function sessionProviderLabel(p: string): string {
+  if (p === "email") return "E-mail";
+  if (p === "google") return "Google";
+  if (p === "apple") return "Apple";
+  if (p === "facebook") return "Facebook";
+  return p;
+}
+
+function platformLabel(p: string): string {
+  if (p === "web") return "Web";
+  if (p === "ios") return "iOS";
+  if (p === "android") return "Android";
+  return p;
 }
 
 export default function AdminHomePage() {
@@ -86,6 +113,17 @@ export default function AdminHomePage() {
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  const [sessionModal, setSessionModal] = useState<{
+    uid: string;
+    email: string | null;
+  } | null>(null);
+  const [sessionList, setSessionList] = useState<AdminSessionRow[]>([]);
+  const [sessionListLoading, setSessionListLoading] = useState(false);
+  const [sessionListError, setSessionListError] = useState<string | null>(null);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(
+    null
+  );
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -282,6 +320,77 @@ export default function AdminHomePage() {
     router.refresh();
   }
 
+  const loadSessionsForModal = useCallback(async (uid: string) => {
+    setSessionListLoading(true);
+    setSessionListError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/user-sessions?uid=${encodeURIComponent(uid)}`,
+        { credentials: "include" }
+      );
+      const data = (await res.json()) as {
+        sessions?: AdminSessionRow[];
+        error?: string;
+      };
+      if (!res.ok) {
+        setSessionList([]);
+        setSessionListError(data.error || "Erreur de chargement.");
+        return;
+      }
+      setSessionList(data.sessions ?? []);
+    } catch {
+      setSessionList([]);
+      setSessionListError("Erreur réseau.");
+    } finally {
+      setSessionListLoading(false);
+    }
+  }, []);
+
+  async function openSessionsModal(u: AdminUserRow) {
+    setSessionModal({ uid: u.uid, email: u.email });
+    await loadSessionsForModal(u.uid);
+  }
+
+  function closeSessionsModal() {
+    setSessionModal(null);
+    setSessionList([]);
+    setSessionListError(null);
+  }
+
+  async function revokeAdminSession(uid: string, sessionId: string) {
+    if (
+      !confirm(
+        "Révoquer cette session ? L’utilisateur sera déconnecté sur cet appareil."
+      )
+    ) {
+      return;
+    }
+    setGrantError(null);
+    setGrantMessage(null);
+    setRevokingSessionId(sessionId);
+    try {
+      const res = await fetch("/api/admin/revoke-user-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: uid, sessionId }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setSessionListError(data.error || "Révocation impossible.");
+        return;
+      }
+      setGrantMessage("Session révoquée.");
+      await loadSessionsForModal(uid);
+      await loadPage();
+      await loadStats();
+    } catch {
+      setSessionListError("Erreur réseau.");
+    } finally {
+      setRevokingSessionId(null);
+    }
+  }
+
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -290,7 +399,8 @@ export default function AdminHomePage() {
             Administration — utilisateurs
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Liste Firebase Auth enrichie avec les données d’abonnement Firestore.
+            Liste Firebase Auth enrichie avec les données d’abonnement Firestore
+            et les sessions appareil (web / mobile).
           </p>
         </div>
         <Button
@@ -469,12 +579,13 @@ export default function AdminHomePage() {
               Chargement…
             </p>
           ) : (
-            <Table className="min-w-[720px]">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Nom</TableHead>
                   <TableHead>Connexion</TableHead>
+                  <TableHead>Sessions</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Abonnement</TableHead>
                   <TableHead>Expiration</TableHead>
@@ -484,7 +595,7 @@ export default function AdminHomePage() {
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       Aucun utilisateur.
                     </TableCell>
                   </TableRow>
@@ -509,6 +620,23 @@ export default function AdminHomePage() {
                           {u.providers.length
                             ? u.providers.map(providerShort).join(", ")
                             : "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          <span className="tabular-nums">
+                            {u.sessionsActive ?? 0} actives /{" "}
+                            {u.sessionsTotal ?? 0}
+                          </span>
+                          <div className="mt-1">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => void openSessionsModal(u)}
+                            >
+                              Détail
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell>
                           {u.disabled ? (
@@ -694,6 +822,131 @@ export default function AdminHomePage() {
           </Button>
         </form>
       </section>
+
+      {sessionModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-sessions-title"
+          onClick={closeSessionsModal}
+        >
+          <Card
+            className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 border-b py-4">
+              <div className="min-w-0">
+                <CardTitle id="admin-sessions-title" className="text-lg">
+                  Sessions appareil
+                </CardTitle>
+                <p className="mt-1 truncate text-sm text-muted-foreground">
+                  {sessionModal.email ?? sessionModal.uid}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={closeSessionsModal}
+              >
+                Fermer
+              </Button>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              {sessionListLoading && (
+                <p className="text-sm text-muted-foreground">Chargement…</p>
+              )}
+              {!sessionListLoading && sessionListError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {sessionListError}
+                </p>
+              )}
+              {!sessionListLoading && !sessionListError && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Plateforme</TableHead>
+                      <TableHead>Fournisseur</TableHead>
+                      <TableHead>État</TableHead>
+                      <TableHead>Dernière activité</TableHead>
+                      <TableHead>Appareil</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sessionList.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center text-muted-foreground"
+                        >
+                          Aucune session enregistrée.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      sessionList.map((s) => (
+                        <TableRow key={s.sessionId}>
+                          <TableCell className="text-xs">
+                            {platformLabel(s.platform)}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {sessionProviderLabel(s.provider)}
+                          </TableCell>
+                          <TableCell>
+                            {s.isActive ? (
+                              <Badge variant="default">Active</Badge>
+                            ) : (
+                              <Badge variant="outline">Inactive</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                            {s.lastActiveAt
+                              ? new Date(s.lastActiveAt).toLocaleString("fr-FR")
+                              : "—"}
+                          </TableCell>
+                          <TableCell
+                            className="max-w-[200px] truncate font-mono text-xs text-muted-foreground"
+                            title={s.deviceInfoPreview}
+                          >
+                            {s.deviceInfoPreview}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {s.isActive ? (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                disabled={
+                                  revokingSessionId === s.sessionId
+                                }
+                                onClick={() =>
+                                  void revokeAdminSession(
+                                    sessionModal.uid,
+                                    s.sessionId
+                                  )
+                                }
+                              >
+                                {revokingSessionId === s.sessionId
+                                  ? "…"
+                                  : "Révoquer"}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
       <p className="text-center text-sm text-muted-foreground">
         <Link href="/" className="text-primary underline">

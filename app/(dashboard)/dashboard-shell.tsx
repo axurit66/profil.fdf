@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { SessionGuard } from "@/components/session-guard";
 import { Button } from "@/components/ui/button";
 import { DashboardNav } from "./dashboard-nav";
 
@@ -17,12 +18,14 @@ const pathTitles: Record<string, string> = {
 
 export function DashboardShell({
   children,
+  userId,
   email,
   displayName,
   photoURL,
   showInvoicesTab,
 }: {
   children: React.ReactNode;
+  userId: string;
   email: string;
   displayName: string | undefined;
   photoURL: string | undefined;
@@ -131,7 +134,7 @@ export function DashboardShell({
       ) : null}
 
       <main className="min-w-0 flex-1 p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6">
-        {children}
+        <SessionGuard userId={userId}>{children}</SessionGuard>
       </main>
     </div>
   );
