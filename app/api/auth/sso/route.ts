@@ -11,6 +11,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FDF_AUTH_COOKIE = "fdf_auth";
+/** Cookie marqueur léger lu par les caches HTTP (WP / Cloudflare) pour bypasser le cache des premium. */
+const FDF_PREMIUM_COOKIE = "fdf_premium";
 
 /** Durée max du cookie / du champ `exp` : évite un jeton « premium » valide longtemps après une mise à jour Firestore. */
 function getSsoCookieMaxAgeSec(): number {
@@ -151,6 +153,26 @@ export async function GET(req: NextRequest) {
     sameSite: "lax",
     maxAge,
   });
+
+  if (isPremium) {
+    response.cookies.set(FDF_PREMIUM_COOKIE, "1", {
+      domain: ".feuxdeforet.fr",
+      path: "/",
+      httpOnly: false,
+      secure: true,
+      sameSite: "lax",
+      maxAge,
+    });
+  } else {
+    response.cookies.set(FDF_PREMIUM_COOKIE, "", {
+      domain: ".feuxdeforet.fr",
+      path: "/",
+      httpOnly: false,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 0,
+    });
+  }
 
   return response;
 }

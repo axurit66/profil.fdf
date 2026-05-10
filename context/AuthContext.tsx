@@ -57,7 +57,8 @@ async function syncSessionCookie(idToken: string | null) {
     typeof window !== "undefined"
       ? new URL("/api/auth/session", window.location.origin).toString()
       : "/api/auth/session";
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const maxAttempts = 5;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -66,7 +67,7 @@ async function syncSessionCookie(idToken: string | null) {
       cache: "no-store",
     });
     if (res.ok) return;
-    await new Promise((r) => setTimeout(r, 120));
+    await new Promise((r) => setTimeout(r, 120 * (attempt + 1)));
   }
 }
 
@@ -94,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const token = await redirectResult.user.getIdToken(true);
             await syncSessionCookie(token);
+            await syncSessionCookie(await redirectResult.user.getIdToken(true));
             await new Promise((r) => setTimeout(r, 200));
           } catch {
             /* rechargement même si cookie échoue */
@@ -121,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const provider = sessionProviderFromUser(nextUser);
               const created = await initSession(nextUser.uid, token, provider);
               if (!created.success) {
+                await syncSessionCookie(await nextUser.getIdToken(true));
                 return;
               }
               sid = getStoredSessionId();
@@ -145,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
               return;
             }
+            await syncSessionCookie(await nextUser.getIdToken(true));
           } else {
             clearStoredSessionId();
           }

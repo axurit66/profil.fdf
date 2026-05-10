@@ -145,6 +145,7 @@ export async function POST(request: Request) {
 }
 
 const FDF_AUTH_COOKIE = "fdf_auth";
+const FDF_PREMIUM_COOKIE = "fdf_premium";
 
 /** Autorise le site WordPress (autres sous-domaines) à appeler DELETE en CORS (déconnexion). */
 function corsHeadersForRequest(request: Request): Record<string, string> {
@@ -218,6 +219,14 @@ export async function DELETE(request: Request) {
     maxAge: 0,
   });
   res.cookies.set(FDF_AUTH_COOKIE, "", {
+    domain: ".feuxdeforet.fr",
+    path: "/",
+    httpOnly: false,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 0,
+  });
+  res.cookies.set(FDF_PREMIUM_COOKIE, "", {
     domain: ".feuxdeforet.fr",
     path: "/",
     httpOnly: false,
