@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:session-rules": "node --env-file=.env.local scripts/test-session-firestore.cjs",
-    "seed:test-sessions": "node --env-file=.env.local scripts/seed-test-user-sessions.cjs"
+    "seed:test-sessions": "node --env-file=.env.local scripts/seed-test-user-sessions.cjs",
+    "import:iap-subscribers": "node --env-file=.env.local scripts/import-iap-subscribers.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

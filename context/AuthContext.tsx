@@ -37,6 +37,8 @@ import {
   getStoredSessionId,
 } from "@/lib/session-client";
 import { getLogoutUrl } from "@/lib/main-site";
+import { attachPostLoginRedirectingOverlay } from "@/components/post-login-redirecting-screen";
+import { getPostLoginDestination } from "@/lib/post-login-navigation";
 
 type AuthContextValue = {
   user: User | null;
@@ -89,9 +91,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const returnPath = readOAuthReturnPathFromBrowser();
 
         if (redirectResult?.user) {
+          attachPostLoginRedirectingOverlay();
           clearOAuthPostLoginPath();
-          let path = returnPath ?? "/";
-          if (!path.startsWith("/") || path.startsWith("//")) path = "/";
+          const path = getPostLoginDestination(returnPath);
           try {
             const token = await redirectResult.user.getIdToken(true);
             await syncSessionCookie(token);
@@ -100,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch {
             /* rechargement même si cookie échoue */
           }
-          window.location.replace(new URL(path, window.location.origin).href);
+          window.location.replace(path);
           return;
         }
       } catch {

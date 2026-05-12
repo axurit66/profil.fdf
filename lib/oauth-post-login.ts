@@ -1,6 +1,9 @@
 /** Cible après retour OAuth Firebase (signInWithRedirect). */
 export const OAUTH_POST_LOGIN_PATH_KEY = "fdf_oauth_post_login";
 
+/** Sans `?redirect=` explicite : SSO WordPress après le cookie Firebase. */
+export const OAUTH_DEFAULT_POST_LOGIN_PATH = "/api/auth/sso";
+
 const OAUTH_POST_LOGIN_LS_KEY = "fdf_oauth_post_login_ls";
 
 const LOGIN_NEXT_COOKIE = "fdf_login_next";
@@ -30,8 +33,12 @@ export function normalizeOAuthReturnPath(raw: string | null): string | null {
   if (raw == null || raw === "") return null;
   const t = raw.trim();
   if (!t.startsWith("/") || t.startsWith("//")) return null;
-  if (t === "/login" || t.startsWith("/login?")) return "/";
-  if (t === "/register" || t.startsWith("/register?")) return "/";
+  if (t === "/login" || t.startsWith("/login?")) {
+    return OAUTH_DEFAULT_POST_LOGIN_PATH;
+  }
+  if (t === "/register" || t.startsWith("/register?")) {
+    return OAUTH_DEFAULT_POST_LOGIN_PATH;
+  }
   return t;
 }
 

@@ -5,15 +5,23 @@ import { ArrowLeft, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { PostLoginRedirectingScreen } from "@/components/post-login-redirecting-screen";
+import { Turnstile, type TurnstileHandle } from "@/components/turnstile";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { storeOAuthPostLoginPath } from "@/lib/oauth-post-login";
+import {
+  OAUTH_DEFAULT_POST_LOGIN_PATH,
+  storeOAuthPostLoginPath,
+} from "@/lib/oauth-post-login";
 import { setupPostLoginReload } from "@/lib/post-login-navigation";
 import { consumeSessionRevokedFlash } from "@/lib/session-client";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { getMainSiteUrl } from "@/lib/main-site";
+import { verifyTurnstileToken } from "@/lib/turnstile-client";
 import { cn } from "@/lib/utils";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 function mapFirebaseError(code: string | undefined): string {
   switch (code) {
@@ -60,6 +68,13 @@ function LoginForm() {
     string | null
   >(null);
   const [pending, setPending] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle | null>(null);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    captchaRef.current?.reset();
+  }
 
   const registerHref =
     postLoginPath &&
@@ -82,8 +97,20 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setResetMessage(null);
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError("Merci de valider le captcha.");
+      return;
+    }
     setPending(true);
     try {
+      if (TURNSTILE_SITE_KEY) {
+        const ok = await verifyTurnstileToken(captchaToken ?? "");
+        if (!ok) {
+          setError("Captcha invalide. Réessayez.");
+          resetCaptcha();
+          return;
+        }
+      }
       await signInWithEmail(email, password);
     } catch (err: unknown) {
       const code =
@@ -91,6 +118,7 @@ function LoginForm() {
           ? String((err as { code?: string }).code)
           : undefined;
       setError(mapFirebaseError(code));
+      resetCaptcha();
     } finally {
       setPending(false);
     }
@@ -103,12 +131,25 @@ function LoginForm() {
       setError("Indiquez votre e-mail pour réinitialiser le mot de passe.");
       return;
     }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError("Merci de valider le captcha.");
+      return;
+    }
     setPending(true);
     try {
+      if (TURNSTILE_SITE_KEY) {
+        const ok = await verifyTurnstileToken(captchaToken ?? "");
+        if (!ok) {
+          setError("Captcha invalide. Réessayez.");
+          resetCaptcha();
+          return;
+        }
+      }
       await sendPasswordResetEmail(getFirebaseAuth(), email.trim());
       setResetMessage(
         "Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d’être envoyé."
       );
+      resetCaptcha();
     } catch (err: unknown) {
       const code =
         err && typeof err === "object" && "code" in err
@@ -121,6 +162,7 @@ function LoginForm() {
       } else {
         setError(mapFirebaseError(code));
       }
+      resetCaptcha();
     } finally {
       setPending(false);
     }
@@ -136,7 +178,7 @@ function LoginForm() {
         postLoginPath.startsWith("/") &&
         !postLoginPath.startsWith("//")
           ? postLoginPath
-          : "/";
+          : OAUTH_DEFAULT_POST_LOGIN_PATH;
       storeOAuthPostLoginPath(path);
       await signInWithGoogle();
     } catch (err: unknown) {
@@ -160,7 +202,7 @@ function LoginForm() {
         postLoginPath.startsWith("/") &&
         !postLoginPath.startsWith("//")
           ? postLoginPath
-          : "/";
+          : OAUTH_DEFAULT_POST_LOGIN_PATH;
       storeOAuthPostLoginPath(path);
       await signInWithApple();
     } catch (err: unknown) {
@@ -184,7 +226,7 @@ function LoginForm() {
         postLoginPath.startsWith("/") &&
         !postLoginPath.startsWith("//")
           ? postLoginPath
-          : "/";
+          : OAUTH_DEFAULT_POST_LOGIN_PATH;
       storeOAuthPostLoginPath(path);
       await signInWithFacebook();
     } catch (err: unknown) {
@@ -201,9 +243,15 @@ function LoginForm() {
   if (loading) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-white">
-        <p className="text-muted-foreground">Chargement…</p>
+        <p className="text-muted-foreground">
+          {user ? "Redirection en cours…" : "Chargement…"}
+        </p>
       </div>
     );
+  }
+
+  if (user) {
+    return <PostLoginRedirectingScreen />;
   }
 
   return (
@@ -375,9 +423,21 @@ function LoginForm() {
             </p>
           )}
 
+          {TURNSTILE_SITE_KEY && (
+            <div className="flex justify-center">
+              <Turnstile
+                ref={captchaRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onVerify={(t) => setCaptchaToken(t)}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
+              />
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || (Boolean(TURNSTILE_SITE_KEY) && !captchaToken)}
             className={cn(
               "flex h-12 w-full items-center justify-center rounded-xl bg-primary text-base font-semibold text-primary-foreground shadow-sm transition-colors",
               "hover:bg-primary/90 disabled:opacity-50"
